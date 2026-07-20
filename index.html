@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HKAIVerse Employee ID Generator</title>
+</head>
+<body style="margin:0; padding: 2.5rem 1.5rem; background:#FFFFFF; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+
+<div id="app" style="max-width: 720px; margin: 0 auto;">
+  <div style="margin-bottom: 1.5rem;">
+    <div style="font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #1E2761;">HKAIVERSE</div>
+    <h2 style="margin: 4px 0 2px; font-size: 20px; font-weight: 600; color: #17193A;">Employee ID generator</h2>
+    <p style="margin: 0; font-size: 13px; color: #5B5F86;">Assigns the next sequential ID per role and year, and remembers every ID that's been issued on this device.</p>
+  </div>
+
+  <div id="banner" style="display:none; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 1rem;"></div>
+
+  <div style="background: #F2F4FB; border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 1.5rem;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+      <div>
+        <label style="display:block; font-size: 12px; color:#5B5F86; margin-bottom: 4px;">Full name</label>
+        <input id="nameInput" type="text" placeholder="e.g. Priya Sharma" style="width:100%; box-sizing:border-box; padding: 8px 10px; border-radius: 6px; border: 1px solid #D8DCEE; font-size: 14px;" />
+      </div>
+      <div>
+        <label style="display:block; font-size: 12px; color:#5B5F86; margin-bottom: 4px;">Role</label>
+        <select id="roleInput" style="width:100%; box-sizing:border-box; padding: 8px 10px; border-radius: 6px; border: 1px solid #D8DCEE; font-size: 14px; background: white;">
+          <option value="D">Director</option>
+          <option value="E" selected>Employee</option>
+          <option value="I">Intern / Student</option>
+          <option value="C">Contractor</option>
+        </select>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;">
+      <div>
+        <label style="display:block; font-size: 12px; color:#5B5F86; margin-bottom: 4px;">Year joined</label>
+        <input id="yearInput" type="number" style="width:100%; box-sizing:border-box; padding: 8px 10px; border-radius: 6px; border: 1px solid #D8DCEE; font-size: 14px;" />
+      </div>
+      <button id="generateBtn" style="padding: 9px 18px; border-radius: 6px; border: none; background: #1E2761; color: white; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;">Generate ID</button>
+    </div>
+  </div>
+
+  <div id="resultCard" style="display:none; background: #1E2761; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: white;">
+    <div style="font-size: 12px; color: #9BA0D6; letter-spacing: 1px;">NEWLY ASSIGNED ID</div>
+    <div id="resultId" style="font-size: 26px; font-weight: 700; margin-top: 2px;"></div>
+    <div id="resultName" style="font-size: 13px; color: #CADCFC; margin-top: 2px;"></div>
+  </div>
+
+  <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+    <h3 style="font-size: 14px; font-weight: 600; color:#17193A; margin:0;">Roster</h3>
+    <div style="display:flex; gap: 8px;">
+      <input id="searchInput" type="text" placeholder="Search name or ID" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #D8DCEE; font-size: 13px; width: 180px;" />
+      <button id="exportBtn" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #D8DCEE; background: white; font-size: 12px; color:#1E2761; cursor:pointer;">Export CSV</button>
+    </div>
+  </div>
+  <div id="rosterEmpty" style="display:none; padding: 24px; text-align:center; color:#5B5F86; font-size: 13px; background:#F2F4FB; border-radius: 8px;">No IDs assigned yet. Generate the first one above.</div>
+  <table id="rosterTable" style="display:none; width:100%; border-collapse: collapse; font-size: 13px;">
+    <thead>
+      <tr style="text-align:left; color:#5B5F86; border-bottom: 1px solid #D8DCEE;">
+        <th style="padding: 6px 4px;">ID</th>
+        <th style="padding: 6px 4px;">Name</th>
+        <th style="padding: 6px 4px;">Role</th>
+        <th style="padding: 6px 4px;">Joined</th>
+      </tr>
+    </thead>
+    <tbody id="rosterBody"></tbody>
+  </table>
+
+  <p style="margin-top: 2rem; font-size: 11.5px; color: #9BA0AE; line-height: 1.5;">
+    Note: this tool saves data in this browser only (via localStorage). It won't sync between different computers or browsers.
+    Use "Export CSV" regularly to keep a shared backup of the full roster.
+  </p>
+</div>
+
+<script>
+(function() {
+  const ROLE_LABELS = { D: 'Director', E: 'Employee', I: 'Intern / Student', C: 'Contractor' };
+  const STORAGE_KEY = 'hkaiverse-employee-roster';
+  let roster = [];
+
+  const el = (id) => document.getElementById(id);
+  el('yearInput').value = new Date().getFullYear();
+
+  function showBanner(msg, type) {
+    const b = el('banner');
+    b.style.display = 'block';
+    b.textContent = msg;
+    b.style.background = type === 'error' ? '#FCEBEB' : '#EAF3DE';
+    b.style.color = type === 'error' ? '#791F1F' : '#27500A';
+  }
+  function hideBanner() { el('banner').style.display = 'none'; }
+
+  function loadRoster() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      roster = raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      roster = [];
+      showBanner('Could not read saved data from this browser. Starting with an empty roster.', 'error');
+    }
+    renderRoster();
+  }
+
+  function saveRoster() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(roster));
+    } catch (e) {
+      showBanner('Could not save to this browser\u2019s storage. Your ID was generated but may not persist after reload.', 'error');
+    }
+  }
+
+  function nextId(role, year) {
+    const yy = String(year).slice(-2);
+    const existing = roster.filter(r => r.role === role && r.year === year);
+    const seq = existing.length + 1;
+    const seqStr = String(seq).padStart(3, '0');
+    return `HKAI-${role}${yy}-${seqStr}`;
+  }
+
+  function renderRoster(filter) {
+    const body = el('rosterBody');
+    const table = el('rosterTable');
+    const empty = el('rosterEmpty');
+    body.innerHTML = '';
+
+    let rows = [...roster].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    if (filter) {
+      const f = filter.toLowerCase();
+      rows = rows.filter(r => r.name.toLowerCase().includes(f) || r.id.toLowerCase().includes(f));
+    }
+
+    if (rows.length === 0) {
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      empty.textContent = filter ? 'No matches found.' : 'No IDs assigned yet. Generate the first one above.';
+      return;
+    }
+    empty.style.display = 'none';
+    table.style.display = 'table';
+
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #EEF0F8';
+      tr.innerHTML = `
+        <td style="padding: 7px 4px; font-weight: 600; color:#1E2761;">${r.id}</td>
+        <td style="padding: 7px 4px; color:#17193A;">${r.name}</td>
+        <td style="padding: 7px 4px; color:#5B5F86;">${ROLE_LABELS[r.role] || r.role}</td>
+        <td style="padding: 7px 4px; color:#5B5F86;">${r.year}</td>
+      `;
+      body.appendChild(tr);
+    });
+  }
+
+  el('generateBtn').addEventListener('click', function() {
+    hideBanner();
+    const name = el('nameInput').value.trim();
+    const role = el('roleInput').value;
+    const year = parseInt(el('yearInput').value, 10);
+
+    if (!name) { showBanner('Enter a name before generating an ID.', 'error'); return; }
+    if (!year || year < 2000 || year > 2100) { showBanner('Enter a valid year.', 'error'); return; }
+
+    const id = nextId(role, year);
+    roster.push({ id, name, role, year, addedAt: Date.now() });
+    saveRoster();
+
+    el('resultCard').style.display = 'block';
+    el('resultId').textContent = id;
+    el('resultName').textContent = `${name} \u2014 ${ROLE_LABELS[role]}`;
+
+    el('nameInput').value = '';
+    renderRoster(el('searchInput').value);
+  });
+
+  el('searchInput').addEventListener('input', function(e) { renderRoster(e.target.value); });
+  el('nameInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') el('generateBtn').click(); });
+
+  el('exportBtn').addEventListener('click', function() {
+    if (roster.length === 0) { showBanner('No records to export yet.', 'error'); return; }
+    const header = 'ID,Name,Role,Year\n';
+    const rows = roster.map(r => `${r.id},"${r.name}",${ROLE_LABELS[r.role] || r.role},${r.year}`).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hkaiverse-roster.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  loadRoster();
+})();
+</script>
+</body>
+</html>
